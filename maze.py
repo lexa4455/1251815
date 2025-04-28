@@ -22,10 +22,11 @@ mixer.music.load('jungles.ogg')
 
 money = mixer.Sound('money.ogg')
 kick = mixer.Sound('kick.ogg')
+stun_sound = mixer.Sound('stun.mp3')  # Звук оглушения
 
 # --- Шрифти ---
 font_main = font.Font(None, 70)
-font_hint = font.Font(None, 40)  # Шрифт для подсказки
+font_hint = font.Font(None, 40)
 win_text = font_main.render("YOU WIN!", True, (0, 0, 0))
 lose_text = font_main.render("YOU LOSE!", True, (0, 0, 0))
 
@@ -42,7 +43,6 @@ class GameSprite(sprite.Sprite):
     def reset(self):
         window.blit(self.image, (self.rect.x, self.rect.y))
 
-
 class Player(GameSprite):
     def update(self):
         keys = key.get_pressed()
@@ -55,14 +55,13 @@ class Player(GameSprite):
         if keys[K_DOWN] and self.rect.y < win_height - 80:
             self.rect.y += self.speed
 
-
 class Enemy(GameSprite):
     direction = "left"
 
     def __init__(self, player_image, player_x, player_y, player_speed):
         super().__init__(player_image, player_x, player_y, player_speed)
         self.vision_rect = Rect(0, 0, 80, 65)
-        self.stun_zone = Rect(0, 0, 70, 70)  # Зона оглушения
+        self.stun_zone = Rect(0, 0, 70, 70)
         self.update_vision()
         self.stunned = False
 
@@ -107,7 +106,6 @@ class Enemy(GameSprite):
             surface = Surface((self.stun_zone.width, self.stun_zone.height), SRCALPHA)
             surface.fill((0, 255, 0, 100))
             window.blit(surface, (self.stun_zone.x, self.stun_zone.y))
-
 
 class Wall(sprite.Sprite):
     def __init__(self, wall_x, wall_y, wall_width, wall_height):
@@ -171,17 +169,26 @@ while game:
         if keys[K_SPACE] and not monster.stunned:
             if monster.stun_zone.colliderect(player.rect):
                 monster.stunned = True
+                stun_sound.play(maxtime=300)
 
         # --- Проверка проигрыша ---
         player_in_stun_zone = monster.stun_zone.colliderect(player.rect)
 
-        # Проверка проигрыша при касании монстра или стены
+        # Если игрок в красной зоне (зрение врага) и враг не оглушён
+        if not monster.stunned:
+            if monster.vision_rect.colliderect(player.rect):
+                finish = True
+                result = "lose"
+                kick.play()
+
+        # Если игрок касается монстра напрямую (если не в зоне stun)
         if not monster.stunned and not player_in_stun_zone:
             if sprite.collide_rect(player, monster):
                 finish = True
                 result = "lose"
                 kick.play()
 
+        # Если игрок касается стены
         if any(sprite.collide_rect(player, wall) for wall in walls):
             finish = True
             result = "lose"
