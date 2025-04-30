@@ -16,13 +16,11 @@ display.set_caption("Maze")
 
 background = transform.scale(image.load("background.jpg"), (win_width, win_height))
 
-# --- Фонова музика ---
+# --- Звуки ---
 mixer.music.load('jungles.ogg')
-# mixer.music.play(-1)
-
 money = mixer.Sound('money.ogg')
 kick = mixer.Sound('kick.ogg')
-stun_sound = mixer.Sound('stun.mp3')  # Звук оглушения
+stun_sound = mixer.Sound('stun.mp3')
 
 # --- Шрифти ---
 font_main = font.Font(None, 70)
@@ -56,10 +54,11 @@ class Player(GameSprite):
             self.rect.y += self.speed
 
 class Enemy(GameSprite):
-    direction = "left"
-
-    def __init__(self, player_image, player_x, player_y, player_speed):
+    def __init__(self, player_image, player_x, player_y, player_speed, patrol_left, patrol_right):
         super().__init__(player_image, player_x, player_y, player_speed)
+        self.direction = "left"
+        self.patrol_left = patrol_left
+        self.patrol_right = patrol_right
         self.vision_rect = Rect(0, 0, 80, 65)
         self.stun_zone = Rect(0, 0, 70, 70)
         self.update_vision()
@@ -67,9 +66,9 @@ class Enemy(GameSprite):
 
     def update(self):
         if not self.stunned:
-            if self.rect.x <= 470:
+            if self.rect.x <= self.patrol_left:
                 self.direction = "right"
-            if self.rect.x >= win_width - 85:
+            if self.rect.x >= self.patrol_right:
                 self.direction = "left"
 
             if self.direction == "left":
@@ -110,11 +109,8 @@ class Enemy(GameSprite):
 class Wall(sprite.Sprite):
     def __init__(self, wall_x, wall_y, wall_width, wall_height):
         super().__init__()
-        self.width = wall_width
-        self.height = wall_height
-        self.image = Surface((self.width, self.height))
-        self.color = (0, 0, 0)
-        self.image.fill(self.color)
+        self.image = Surface((wall_width, wall_height))
+        self.image.fill((154, 205, 50))
         self.rect = self.image.get_rect()
         self.rect.x = wall_x
         self.rect.y = wall_y
@@ -122,33 +118,77 @@ class Wall(sprite.Sprite):
     def draw_wall(self):
         window.blit(self.image, (self.rect.x, self.rect.y))
 
-    def set_color(self, color_1, color_2, color_3):
-        self.color = (color_1, color_2, color_3)
-        self.image.fill(self.color)
+def is_visible(player, enemy, walls):
+    start = enemy.rect.center
+    end = player.rect.center
+    for wall in walls:
+        if wall.rect.clipline(start, end):
+            return False
+    return True
 
-# --- Об'єкти ---
-player = Player('hero.png', 5, win_height - 80, 3)
-monster = Enemy('cyborg.png', win_width - 80, 280, 2)
-final = GameSprite('treasure.png', win_width - 270, win_height - 450, 0)
-
-# --- Стіни лабіринту ---
-walls = [
-    Wall(0, 0, 700, 10),
-    Wall(690, 0, 10, 500),
-    Wall(0, 490, 700, 10),
-    Wall(100, 0, 10, 350),
-    Wall(250, 150, 10, 350),
-    Wall(400, 0, 10, 400),
-    Wall(100, 150, 80, 10),
-    Wall(400, 150, 150, 10),
-    Wall(330, 250, 80, 10),
-    Wall(250, 370, 80, 10),
+# --- Рівні з кількома ворогами ---
+levels = [
+    {
+        "player_pos": (5, win_height - 80),
+        "final_pos": (win_width - 700, win_height - 150),
+        "enemies": [
+            
+            {"pos": (500, 280), "patrol": (480, 620)}
+        ],
+        "walls": [
+            (0, 0, 700, 10),
+            (690, 0, 10, 500),
+            (0, 490, 700, 10),
+            (100, 0, 10, 350),
+            (250, 150, 10, 350),
+            (400, 0, 10, 400),
+            (100, 150, 80, 10),
+            (400, 150, 150, 10),
+            (330, 250, 80, 10),
+            (250, 370, 80, 10),
+        ]
+    },
+    {
+        "player_pos": (600, 40),
+        "final_pos": (600, 400),
+        "enemies": [
+            {"pos": (200, 240), "patrol": (210, 350)}
+        ],
+        "walls": [
+            (0, 0, 700, 10),
+            (0, 0, 10, 500),
+            (690, 0, 10, 500),
+            (0, 490, 700, 10),
+            (100, 120, 600, 10),
+            (100, 0, 10, 50),
+            (200, 80, 10, 50),
+            (300, 0, 10, 50),
+            (400, 80, 10, 50),
+            (500, 0, 10, 50),
+            (100, 120, 10, 100),
+            (100, 300, 10, 200),
+        ]
+    }
 ]
 
-for wall in walls:
-    wall.set_color(154, 205, 50)
+
+# --- Завантаження рівня ---
+def load_level(index):
+    level = levels[index]
+    player = Player('hero.png', *level["player_pos"], 3)
+    final = GameSprite('treasure.png', *level["final_pos"], 0)
+    walls = [Wall(*w) for w in level["walls"]]
+    enemies = []
+    for enemy_data in level["enemies"]:
+        x, y = enemy_data["pos"]
+        patrol_left, patrol_right = enemy_data["patrol"]
+        enemy = Enemy('cyborg.png', x, y, 2, patrol_left, patrol_right)
+        enemies.append(enemy)
+    return player, enemies, final, walls
 
 # --- Ігрові змінні ---
+current_level = 0
+player, enemies, final, walls = load_level(current_level)
 game = True
 finish = False
 clock = time.Clock()
@@ -158,70 +198,73 @@ while game:
     for e in event.get():
         if e.type == QUIT:
             game = False
+        if e.type == KEYDOWN and finish and e.key == K_r:
+            current_level = 0
+            player, enemies, final, walls = load_level(current_level)
+            finish = False
+            #mixer.music.play(-1)
 
     if not finish:
         player.update()
-        monster.update()
+        for enemy in enemies:
+            enemy.update()
 
         keys = key.get_pressed()
-
-        # --- Оглушение врага на кнопку SPACE ---
-        if keys[K_SPACE] and not monster.stunned:
-            if monster.stun_zone.colliderect(player.rect):
-                monster.stunned = True
+        for enemy in enemies:
+            if keys[K_SPACE] and not enemy.stunned and enemy.stun_zone.colliderect(player.rect):
+                enemy.stunned = True
                 stun_sound.play(maxtime=300)
 
-        # --- Проверка проигрыша ---
-        player_in_stun_zone = monster.stun_zone.colliderect(player.rect)
+            if not enemy.stunned and enemy.vision_rect.colliderect(player.rect):
+                if is_visible(player, enemy, walls):
+                    finish = True
+                    result = "lose"
+                    kick.play()
 
-        # Если игрок в красной зоне (зрение врага) и враг не оглушён
-        if not monster.stunned:
-            if monster.vision_rect.colliderect(player.rect):
+            if not enemy.stunned and not enemy.stun_zone.colliderect(player.rect) and sprite.collide_rect(player, enemy):
                 finish = True
                 result = "lose"
                 kick.play()
 
-        # Если игрок касается монстра напрямую (если не в зоне stun)
-        if not monster.stunned and not player_in_stun_zone:
-            if sprite.collide_rect(player, monster):
+        for wall in walls:
+            if player.rect.colliderect(wall.rect):
                 finish = True
                 result = "lose"
                 kick.play()
+                break
 
-        # Если игрок касается стены
-        if any(sprite.collide_rect(player, wall) for wall in walls):
-            finish = True
-            result = "lose"
-            kick.play()
-
-        # --- Проверка победы ---
         if sprite.collide_rect(player, final):
-            finish = True
-            result = "win"
-            money.play()
+            current_level += 1
+            if current_level < len(levels):
+                player, enemies, final, walls = load_level(current_level)
+                finish = False
+                continue
+            else:
+                finish = True
+                result = "win"
+                money.play()
 
-        # --- Рисуем игру ---
         window.blit(background, (0, 0))
         player.reset()
-        if not monster.stunned:
-            monster.reset()
-            monster.draw_vision()
-            monster.draw_stun_zone()
-
-            if monster.stun_zone.colliderect(player.rect):
-                hint_text = font_hint.render("Press SPACE!", True, (255, 255, 255))
-                window.blit(hint_text, (monster.rect.x - 20, monster.rect.y - 30))
-
+        for enemy in enemies:
+            if not enemy.stunned:
+                enemy.reset()
+                enemy.draw_vision()
+                enemy.draw_stun_zone()
+                if enemy.stun_zone.colliderect(player.rect):
+                    hint = font_hint.render("Press SPACE!", True, (255, 255, 255))
+                    window.blit(hint, (enemy.rect.x - 20, enemy.rect.y - 30))
         final.reset()
         for wall in walls:
             wall.draw_wall()
-
     else:
         window.blit(background, (0, 0))
         if result == "win":
             window.blit(win_text, (200, 200))
         else:
             window.blit(lose_text, (200, 200))
+        restart_hint = font_hint.render("Press R to restart", True, (0, 0, 0))
+        window.blit(restart_hint, (200, 300))
 
     display.update()
     clock.tick(FPS)
