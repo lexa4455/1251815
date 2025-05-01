@@ -21,6 +21,7 @@ mixer.music.load('jungles.ogg')
 money = mixer.Sound('money.ogg')
 kick = mixer.Sound('kick.ogg')
 stun_sound = mixer.Sound('stun.mp3')
+step_sound = mixer.Sound('beg.mp3')
 
 # --- Шрифти ---
 font_main = font.Font(None, 70)
@@ -44,14 +45,25 @@ class GameSprite(sprite.Sprite):
 class Player(GameSprite):
     def update(self):
         keys = key.get_pressed()
+        moving = False
         if keys[K_LEFT] and self.rect.x > 5:
             self.rect.x -= self.speed
+            moving = True
         if keys[K_RIGHT] and self.rect.x < win_width - 80:
             self.rect.x += self.speed
+            moving = True
         if keys[K_UP] and self.rect.y > 5:
             self.rect.y -= self.speed
+            moving = True
         if keys[K_DOWN] and self.rect.y < win_height - 80:
             self.rect.y += self.speed
+            moving = True
+
+        if moving:
+            if not step_sound.get_num_channels():
+                step_sound.play(-1)
+        else:
+            step_sound.stop()
 
 class Enemy(GameSprite):
     def __init__(self, player_image, player_x, player_y, player_speed, patrol_left, patrol_right):
@@ -106,6 +118,43 @@ class Enemy(GameSprite):
             surface.fill((0, 255, 0, 100))
             window.blit(surface, (self.stun_zone.x, self.stun_zone.y))
 
+class VerticalEnemy(Enemy):
+    def __init__(self, player_image, player_x, player_y, player_speed, patrol_top, patrol_bottom):
+        super().__init__(player_image, player_x, player_y, player_speed, 0, 0)
+        self.direction = "up"
+        self.patrol_top = patrol_top
+        self.patrol_bottom = patrol_bottom
+
+    def update(self):
+        if not self.stunned:
+            if self.rect.y <= self.patrol_top:
+                self.direction = "down"
+            if self.rect.y >= self.patrol_bottom:
+                self.direction = "up"
+
+            if self.direction == "up":
+                self.rect.y -= self.speed
+            else:
+                self.rect.y += self.speed
+
+            self.update_vision()
+
+    def update_vision(self):
+        if self.direction == "up":
+            self.vision_rect.y = self.rect.y - 80
+            self.stun_zone.y = self.rect.y + 65
+        else:
+            self.vision_rect.y = self.rect.y + 65
+            self.stun_zone.y = self.rect.y - 70
+
+        self.vision_rect.x = self.rect.x
+        self.vision_rect.width = 65
+        self.vision_rect.height = 80
+
+        self.stun_zone.x = self.rect.x - 10
+        self.stun_zone.width = 70
+        self.stun_zone.height = 70
+
 class Wall(sprite.Sprite):
     def __init__(self, wall_x, wall_y, wall_width, wall_height):
         super().__init__()
@@ -126,14 +175,13 @@ def is_visible(player, enemy, walls):
             return False
     return True
 
-# --- Рівні з кількома ворогами ---
+# --- Рівні ---
 levels = [
     {
         "player_pos": (5, win_height - 80),
         "final_pos": (win_width - 700, win_height - 150),
         "enemies": [
-            
-            {"pos": (500, 280), "patrol": (480, 620)}
+            {"type": "horizontal", "pos": (500, 280), "patrol": (480, 620)}
         ],
         "walls": [
             (0, 0, 700, 10),
@@ -150,9 +198,10 @@ levels = [
     },
     {
         "player_pos": (600, 40),
-        "final_pos": (600, 400),
+        "final_pos": (500, 40),
         "enemies": [
-            {"pos": (200, 240), "patrol": (210, 350)}
+            {"type": "horizontal", "pos": (200, 240), "patrol": (210, 350)},
+            {"type": "vertical", "pos": (580, 300), "patrol": (200, 400)}
         ],
         "walls": [
             (0, 0, 700, 10),
@@ -167,10 +216,42 @@ levels = [
             (500, 0, 10, 50),
             (100, 120, 10, 100),
             (100, 300, 10, 200),
+            (100, 360, 50, 10),
+            (250, 360, 300, 10),
+            (550, 300, 10, 100),
+            (550, 130, 10, 70),
+            (280, 360, 10, 60),
+            (480, 360, 10, 60),
+            (380, 430, 10, 60),
+        ]
+    },
+    {
+        "player_pos": (600, 400),
+        "final_pos": (600, 40),
+        "enemies": [
+            {"type": "horizontal", "pos": (400, 400), "patrol": (210, 350)},
+            {"type": "vertical", "pos": (400, 200), "patrol": (150, 300)},
+            {"type": "vertical", "pos": (255, 200), "patrol": (150, 300)}
+        ],
+        "walls": [
+            (0, 0, 700, 10),
+            (0, 0, 10, 500),
+            (690, 0, 10, 500),
+            (0, 490, 700, 10),
+            (100, 120, 600, 10),
+            (100, 0, 10, 50),
+            (200, 80, 10, 50),
+            (300, 0, 10, 50),
+            (400, 80, 10, 50),
+            (500, 0, 10, 50),
+            (100, 120, 10, 100),
+            (100, 300, 10, 200),
+            (100, 360, 50, 10),
+            (250, 360, 300, 10),
+            (550, 200, 10, 300),
         ]
     }
 ]
-
 
 # --- Завантаження рівня ---
 def load_level(index):
@@ -181,8 +262,12 @@ def load_level(index):
     enemies = []
     for enemy_data in level["enemies"]:
         x, y = enemy_data["pos"]
-        patrol_left, patrol_right = enemy_data["patrol"]
-        enemy = Enemy('cyborg.png', x, y, 2, patrol_left, patrol_right)
+        if enemy_data["type"] == "horizontal":
+            patrol_left, patrol_right = enemy_data["patrol"]
+            enemy = Enemy('cyborg.png', x, y, 2, patrol_left, patrol_right)
+        elif enemy_data["type"] == "vertical":
+            patrol_top, patrol_bottom = enemy_data["patrol"]
+            enemy = VerticalEnemy('cyborg.png', x, y, 2, patrol_top, patrol_bottom)
         enemies.append(enemy)
     return player, enemies, final, walls
 
@@ -192,6 +277,7 @@ player, enemies, final, walls = load_level(current_level)
 game = True
 finish = False
 clock = time.Clock()
+stunned_count = 0  # счётчик оглушений
 
 # --- Ігровий цикл ---
 while game:
@@ -202,7 +288,7 @@ while game:
             current_level = 0
             player, enemies, final, walls = load_level(current_level)
             finish = False
-            #mixer.music.play(-1)
+            stunned_count = 0
 
     if not finish:
         player.update()
@@ -211,26 +297,30 @@ while game:
 
         keys = key.get_pressed()
         for enemy in enemies:
-            if keys[K_SPACE] and not enemy.stunned and enemy.stun_zone.colliderect(player.rect):
+            if keys[K_SPACE] and not enemy.stunned and enemy.stun_zone.colliderect(player.rect) and is_visible(player, enemy, walls):
                 enemy.stunned = True
                 stun_sound.play(maxtime=300)
+                stunned_count += 1  # +1 к счётчику
 
             if not enemy.stunned and enemy.vision_rect.colliderect(player.rect):
                 if is_visible(player, enemy, walls):
                     finish = True
                     result = "lose"
                     kick.play()
+                    step_sound.stop()
 
             if not enemy.stunned and not enemy.stun_zone.colliderect(player.rect) and sprite.collide_rect(player, enemy):
                 finish = True
                 result = "lose"
                 kick.play()
+                step_sound.stop()
 
         for wall in walls:
             if player.rect.colliderect(wall.rect):
                 finish = True
                 result = "lose"
                 kick.play()
+                step_sound.stop()
                 break
 
         if sprite.collide_rect(player, final):
@@ -243,6 +333,7 @@ while game:
                 finish = True
                 result = "win"
                 money.play()
+                step_sound.stop()
 
         window.blit(background, (0, 0))
         player.reset()
@@ -257,6 +348,11 @@ while game:
         final.reset()
         for wall in walls:
             wall.draw_wall()
+
+        # отображаем статистику оглушений
+        stun_text = font_hint.render(f"Stunned: {stunned_count}", True, (255, 255, 255))
+        window.blit(stun_text, (10, 10))
+
     else:
         window.blit(background, (0, 0))
         if result == "win":
@@ -265,6 +361,10 @@ while game:
             window.blit(lose_text, (200, 200))
         restart_hint = font_hint.render("Press R to restart", True, (0, 0, 0))
         window.blit(restart_hint, (200, 300))
+
+        # показываем итоговое число оглушений
+        stun_result = font_hint.render(f"Total stunned: {stunned_count}", True, (0, 0, 0))
+        window.blit(stun_result, (200, 350))
 
     display.update()
     clock.tick(FPS)
