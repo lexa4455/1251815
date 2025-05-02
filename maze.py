@@ -42,28 +42,62 @@ class GameSprite(sprite.Sprite):
     def reset(self):
         window.blit(self.image, (self.rect.x, self.rect.y))
 
+
 class Player(GameSprite):
+    def __init__(self, player_image, player_x, player_y, player_speed):
+        super().__init__(player_image, player_x, player_y, player_speed)
+        self.direction = 'down'
+        self.anim_index = 0
+        self.anim_counter = 0
+
+        self.walk_left = [transform.scale(image.load(f"player_left/player_left{i}.png").convert_alpha(), (65, 65)) for i in range(1, 5)]
+        self.walk_right = [transform.scale(image.load(f"player_right/player_right{i}.png").convert_alpha(), (65, 65)) for i in range(1, 5)]
+        self.walk_up = [transform.scale(image.load(f"player_up/player_up{i}.png").convert_alpha(), (65, 65)) for i in range(1, 5)]
+        self.walk_down = [transform.scale(image.load(f"player_down/player_down{i}.png").convert_alpha(), (65, 65)) for i in range(1, 5)]
+
     def update(self):
         keys = key.get_pressed()
         moving = False
+
         if keys[K_LEFT] and self.rect.x > 5:
             self.rect.x -= self.speed
+            self.direction = 'left'
             moving = True
-        if keys[K_RIGHT] and self.rect.x < win_width - 80:
+        elif keys[K_RIGHT] and self.rect.x < win_width - 80:
             self.rect.x += self.speed
+            self.direction = 'right'
             moving = True
-        if keys[K_UP] and self.rect.y > 5:
+        elif keys[K_UP] and self.rect.y > 5:
             self.rect.y -= self.speed
+            self.direction = 'up'
             moving = True
-        if keys[K_DOWN] and self.rect.y < win_height - 80:
+        elif keys[K_DOWN] and self.rect.y < win_height - 80:
             self.rect.y += self.speed
+            self.direction = 'down'
             moving = True
 
         if moving:
             if not step_sound.get_num_channels():
                 step_sound.play(-1)
+            self.anim_counter += 1
+            if self.anim_counter >= 10:
+                self.anim_counter = 0
+                self.anim_index = (self.anim_index + 1) % 4
         else:
             step_sound.stop()
+            self.anim_index = 0
+
+    def reset(self):
+        if self.direction == 'left':
+            self.image = self.walk_left[self.anim_index]
+        elif self.direction == 'right':
+            self.image = self.walk_right[self.anim_index]
+        elif self.direction == 'up':
+            self.image = self.walk_up[self.anim_index]
+        elif self.direction == 'down':
+            self.image = self.walk_down[self.anim_index]
+        window.blit(self.image, (self.rect.x, self.rect.y))
+
 
 class Enemy(GameSprite):
     def __init__(self, player_image, player_x, player_y, player_speed, patrol_left, patrol_right):
@@ -118,6 +152,7 @@ class Enemy(GameSprite):
             surface.fill((0, 255, 0, 100))
             window.blit(surface, (self.stun_zone.x, self.stun_zone.y))
 
+
 class VerticalEnemy(Enemy):
     def __init__(self, player_image, player_x, player_y, player_speed, patrol_top, patrol_bottom):
         super().__init__(player_image, player_x, player_y, player_speed, 0, 0)
@@ -155,6 +190,7 @@ class VerticalEnemy(Enemy):
         self.stun_zone.width = 70
         self.stun_zone.height = 70
 
+
 class Wall(sprite.Sprite):
     def __init__(self, wall_x, wall_y, wall_width, wall_height):
         super().__init__()
@@ -167,6 +203,7 @@ class Wall(sprite.Sprite):
     def draw_wall(self):
         window.blit(self.image, (self.rect.x, self.rect.y))
 
+
 def is_visible(player, enemy, walls):
     start = enemy.rect.center
     end = player.rect.center
@@ -174,6 +211,25 @@ def is_visible(player, enemy, walls):
         if wall.rect.clipline(start, end):
             return False
     return True
+
+
+def load_level(index):
+    level = levels[index]
+    player = Player('player_right/player_right1.png', *level["player_pos"], 3)
+    final = GameSprite('treasure.png', *level["final_pos"], 0)
+    walls = [Wall(*w) for w in level["walls"]]
+    enemies = []
+    for enemy_data in level["enemies"]:
+        x, y = enemy_data["pos"]
+        if enemy_data["type"] == "horizontal":
+            patrol_left, patrol_right = enemy_data["patrol"]
+            enemy = Enemy('cyborg.png', x, y, 2, patrol_left, patrol_right)
+        elif enemy_data["type"] == "vertical":
+            patrol_top, patrol_bottom = enemy_data["patrol"]
+            enemy = VerticalEnemy('cyborg.png', x, y, 2, patrol_top, patrol_bottom)
+        enemies.append(enemy)
+    return player, enemies, final, walls
+
 
 # --- Рівні ---
 levels = [
@@ -253,31 +309,13 @@ levels = [
     }
 ]
 
-# --- Завантаження рівня ---
-def load_level(index):
-    level = levels[index]
-    player = Player('hero.png', *level["player_pos"], 3)
-    final = GameSprite('treasure.png', *level["final_pos"], 0)
-    walls = [Wall(*w) for w in level["walls"]]
-    enemies = []
-    for enemy_data in level["enemies"]:
-        x, y = enemy_data["pos"]
-        if enemy_data["type"] == "horizontal":
-            patrol_left, patrol_right = enemy_data["patrol"]
-            enemy = Enemy('cyborg.png', x, y, 2, patrol_left, patrol_right)
-        elif enemy_data["type"] == "vertical":
-            patrol_top, patrol_bottom = enemy_data["patrol"]
-            enemy = VerticalEnemy('cyborg.png', x, y, 2, patrol_top, patrol_bottom)
-        enemies.append(enemy)
-    return player, enemies, final, walls
-
 # --- Ігрові змінні ---
 current_level = 0
 player, enemies, final, walls = load_level(current_level)
 game = True
 finish = False
 clock = time.Clock()
-stunned_count = 0  # счётчик оглушений
+stunned_count = 0
 
 # --- Ігровий цикл ---
 while game:
@@ -300,7 +338,7 @@ while game:
             if keys[K_SPACE] and not enemy.stunned and enemy.stun_zone.colliderect(player.rect) and is_visible(player, enemy, walls):
                 enemy.stunned = True
                 stun_sound.play(maxtime=300)
-                stunned_count += 1  # +1 к счётчику
+                stunned_count += 1
 
             if not enemy.stunned and enemy.vision_rect.colliderect(player.rect):
                 if is_visible(player, enemy, walls):
@@ -349,7 +387,6 @@ while game:
         for wall in walls:
             wall.draw_wall()
 
-        # отображаем статистику оглушений
         stun_text = font_hint.render(f"Stunned: {stunned_count}", True, (255, 255, 255))
         window.blit(stun_text, (10, 10))
 
@@ -361,8 +398,6 @@ while game:
             window.blit(lose_text, (200, 200))
         restart_hint = font_hint.render("Press R to restart", True, (0, 0, 0))
         window.blit(restart_hint, (200, 300))
-
-        # показываем итоговое число оглушений
         stun_result = font_hint.render(f"Total stunned: {stunned_count}", True, (0, 0, 0))
         window.blit(stun_result, (200, 350))
 
