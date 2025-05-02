@@ -14,7 +14,7 @@ font.init()
 window = display.set_mode((win_width, win_height))
 display.set_caption("Maze")
 
-background = transform.scale(image.load("background.jpg"), (win_width, win_height))
+background = transform.scale(image.load("pol1.png"), (win_width, win_height))
 
 # --- Звуки ---
 mixer.music.load('jungles.ogg')
@@ -22,6 +22,9 @@ money = mixer.Sound('money.ogg')
 kick = mixer.Sound('kick.ogg')
 stun_sound = mixer.Sound('stun.mp3')
 step_sound = mixer.Sound('beg.mp3')
+
+# --- Текстура стіни ---
+stena = image.load("stena.jpg")
 
 # --- Шрифти ---
 font_main = font.Font(None, 70)
@@ -194,8 +197,8 @@ class VerticalEnemy(Enemy):
 class Wall(sprite.Sprite):
     def __init__(self, wall_x, wall_y, wall_width, wall_height):
         super().__init__()
-        self.image = Surface((wall_width, wall_height))
-        self.image.fill((154, 205, 50))
+        global stena
+        self.image = transform.scale(stena, (wall_width, wall_height))
         self.rect = self.image.get_rect()
         self.rect.x = wall_x
         self.rect.y = wall_y
@@ -216,17 +219,17 @@ def is_visible(player, enemy, walls):
 def load_level(index):
     level = levels[index]
     player = Player('player_right/player_right1.png', *level["player_pos"], 3)
-    final = GameSprite('treasure.png', *level["final_pos"], 0)
+    final = GameSprite('treasure1.png', *level["final_pos"], 0)
     walls = [Wall(*w) for w in level["walls"]]
     enemies = []
     for enemy_data in level["enemies"]:
         x, y = enemy_data["pos"]
         if enemy_data["type"] == "horizontal":
             patrol_left, patrol_right = enemy_data["patrol"]
-            enemy = Enemy('cyborg.png', x, y, 2, patrol_left, patrol_right)
+            enemy = Enemy('cyborg1.png', x, y, 2, patrol_left, patrol_right)
         elif enemy_data["type"] == "vertical":
             patrol_top, patrol_bottom = enemy_data["patrol"]
-            enemy = VerticalEnemy('cyborg.png', x, y, 2, patrol_top, patrol_bottom)
+            enemy = VerticalEnemy('cyborg1.png', x, y, 2, patrol_top, patrol_bottom)
         enemies.append(enemy)
     return player, enemies, final, walls
 
