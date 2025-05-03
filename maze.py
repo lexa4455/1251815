@@ -17,12 +17,15 @@ display.set_caption("Maze")
 background = transform.scale(image.load("pol1.png"), (win_width, win_height))
 
 # --- Звуки ---
-mixer.music.load('jungles.ogg')
+mixer.music.load('labyrinth.mp3')
+mixer.music.play(-1)
+mixer.music.set_volume(0.2)  
 money = mixer.Sound('money.ogg')
 kick = mixer.Sound('kick.ogg')
 stun_sound = mixer.Sound('stun.mp3')
 step_sound = mixer.Sound('beg.mp3')
-
+vrag = mixer.Sound('vrag.mp3')
+vrag.set_volume(0.3)
 # --- Текстура стіни ---
 stena = image.load("stena.jpg")
 
@@ -114,18 +117,24 @@ class Enemy(GameSprite):
         self.stunned = False
 
     def update(self):
-        if not self.stunned:
-            if self.rect.x <= self.patrol_left:
-                self.direction = "right"
-            if self.rect.x >= self.patrol_right:
-                self.direction = "left"
+        if self.stunned:
+            vrag.stop()
+            return
 
-            if self.direction == "left":
-                self.rect.x -= self.speed
-            else:
-                self.rect.x += self.speed
+        if self.rect.x <= self.patrol_left:
+            self.direction = "right"
+        if self.rect.x >= self.patrol_right:
+            self.direction = "left"
 
-            self.update_vision()
+        if self.direction == "left":
+            self.rect.x -= self.speed
+        else:
+            self.rect.x += self.speed
+
+        self.update_vision()
+
+        if not vrag.get_num_channels():
+            vrag.play(-1)
 
     def update_vision(self):
         if self.direction == "left":
@@ -142,6 +151,63 @@ class Enemy(GameSprite):
         self.stun_zone.y = self.rect.y - 10
         self.stun_zone.width = 70
         self.stun_zone.height = 70
+
+    def draw_vision(self):
+        if not self.stunned:
+            surface = Surface((self.vision_rect.width, self.vision_rect.height), SRCALPHA)
+            surface.fill((255, 0, 0, 100))
+            window.blit(surface, (self.vision_rect.x, self.vision_rect.y))
+
+    def draw_stun_zone(self):
+        if not self.stunned:
+            surface = Surface((self.stun_zone.width, self.stun_zone.height), SRCALPHA)
+            surface.fill((0, 255, 0, 100))
+            window.blit(surface, (self.stun_zone.x, self.stun_zone.y))
+
+
+class VerticalEnemy(Enemy):
+    def __init__(self, player_image, player_x, player_y, player_speed, patrol_top, patrol_bottom):
+        super().__init__(player_image, player_x, player_y, player_speed, 0, 0)
+        self.direction = "up"
+        self.patrol_top = patrol_top
+        self.patrol_bottom = patrol_bottom
+
+    def update(self):
+        if self.stunned:
+            vrag.stop()
+            return
+
+        if self.rect.y <= self.patrol_top:
+            self.direction = "down"
+        if self.rect.y >= self.patrol_bottom:
+            self.direction = "up"
+
+        if self.direction == "up":
+            self.rect.y -= self.speed
+        else:
+            self.rect.y += self.speed
+
+        self.update_vision()
+
+        if not vrag.get_num_channels():
+            vrag.play(-1)
+
+    def update_vision(self):
+        if self.direction == "up":
+            self.vision_rect.y = self.rect.y - 80
+            self.stun_zone.y = self.rect.y + 65
+        else:
+            self.vision_rect.y = self.rect.y + 65
+            self.stun_zone.y = self.rect.y - 70
+
+        self.vision_rect.x = self.rect.x
+        self.vision_rect.width = 65
+        self.vision_rect.height = 80
+
+        self.stun_zone.x = self.rect.x - 10
+        self.stun_zone.width = 70
+        self.stun_zone.height = 70
+
 
     def draw_vision(self):
         if not self.stunned:
@@ -268,7 +334,7 @@ levels = [
             (690, 0, 10, 500),
             (0, 490, 700, 10),
             (100, 120, 600, 10),
-            (100, 0, 10, 40),
+
             (200, 80, 10, 40),
             (300, 0, 10, 40),
             (400, 80, 10, 40),
@@ -312,6 +378,7 @@ levels = [
     }
 ]
 
+
 # --- Ігрові змінні ---
 current_level = 0
 player, enemies, final, walls = load_level(current_level)
@@ -328,6 +395,8 @@ while game:
         if e.type == KEYDOWN and finish and e.key == K_r:
             current_level = 0
             player, enemies, final, walls = load_level(current_level)
+            mixer.music.stop()
+            mixer.music.play(-1)  # Перезапускаем музыку при рестарте
             finish = False
             stunned_count = 0
 
@@ -368,6 +437,8 @@ while game:
             current_level += 1
             if current_level < len(levels):
                 player, enemies, final, walls = load_level(current_level)
+                mixer.music.stop()
+                mixer.music.play(-1)  # Перезапускаем музыку на новом уровне
                 finish = False
                 continue
             else:
