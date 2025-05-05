@@ -52,14 +52,28 @@ class Player(GameSprite):
         self.anim_counter = 0
         self.stunned = False
         self.stun_timer = 0
+
+        # Ходьба
         self.walk_left = [transform.scale(image.load(f"player_left/player_left{i}.png").convert_alpha(), (65, 65)) for i in range(1, 5)]
         self.walk_right = [transform.scale(image.load(f"player_right/player_right{i}.png").convert_alpha(), (65, 65)) for i in range(1, 5)]
         self.walk_up = [transform.scale(image.load(f"player_up/player_up{i}.png").convert_alpha(), (65, 65)) for i in range(1, 5)]
         self.walk_down = [transform.scale(image.load(f"player_down/player_down{i}.png").convert_alpha(), (65, 65)) for i in range(1, 5)]
+
+        # Ошеломление
         self.stun_left = [transform.scale(image.load(f"player_stun_left/stun{i}.png").convert_alpha(), (65, 65)) for i in range(1, 4)]
         self.stun_right = [transform.scale(image.load(f"player_stun_right/stun{i}.png").convert_alpha(), (65, 65)) for i in range(1, 4)]
         self.stun_up = [transform.scale(image.load(f"player_stun_up/stun{i}.png").convert_alpha(), (65, 65)) for i in range(1, 4)]
         self.stun_down = [transform.scale(image.load(f"player_stun_down/stun{i}.png").convert_alpha(), (65, 65)) for i in range(1, 4)]
+
+        # Ожидание (idle)
+        self.idle_left = [transform.scale(image.load(f"player_idle_left/idle{i}.png").convert_alpha(), (65, 65)) for i in range(1, 4)]
+        self.idle_right = [transform.scale(image.load(f"player_idle_right/idle{i}.png").convert_alpha(), (65, 65)) for i in range(1, 4)]
+        self.idle_up = [transform.scale(image.load(f"player_idle_up/idle{i}.png").convert_alpha(), (65, 65)) for i in range(1, 4)]
+        self.idle_down = [transform.scale(image.load(f"player_idle_down/idle{i}.png").convert_alpha(), (65, 65)) for i in range(1, 4)]
+
+        # Таймер простоя
+        self.idle_timer = 0
+        self.is_idle = False
 
     def update(self):
         if self.stunned:
@@ -71,8 +85,10 @@ class Player(GameSprite):
                 self.anim_counter = 0
                 self.anim_index = (self.anim_index + 1) % 3
             return
+
         keys = key.get_pressed()
         moving = False
+
         if keys[K_LEFT] and self.rect.x > 5:
             self.rect.x -= self.speed
             self.direction = 'left'
@@ -89,7 +105,10 @@ class Player(GameSprite):
             self.rect.y += self.speed
             self.direction = 'down'
             moving = True
+
         if moving:
+            self.is_idle = False
+            self.idle_timer = 0
             if not step_sound.get_num_channels():
                 step_sound.play(-1)
             self.anim_counter += 1
@@ -98,7 +117,16 @@ class Player(GameSprite):
                 self.anim_index = (self.anim_index + 1) % 4
         else:
             step_sound.stop()
-            self.anim_index = 0
+            self.idle_timer += 1
+            if self.idle_timer >= FPS * 2:  # 2 секунды без движения
+                self.is_idle = True
+                self.anim_counter += 1
+                if self.anim_counter >= 10:
+                    self.anim_counter = 0
+                    self.anim_index = (self.anim_index + 1) % 3
+            else:
+                self.is_idle = False
+                self.anim_index = 0
 
     def reset(self):
         if self.stunned:
@@ -111,15 +139,27 @@ class Player(GameSprite):
             elif self.direction == 'down':
                 self.image = self.stun_down[self.anim_index % 3]
         else:
-            if self.direction == 'left':
-                self.image = self.walk_left[self.anim_index]
-            elif self.direction == 'right':
-                self.image = self.walk_right[self.anim_index]
-            elif self.direction == 'up':
-                self.image = self.walk_up[self.anim_index]
-            elif self.direction == 'down':
-                self.image = self.walk_down[self.anim_index]
+            if self.is_idle:
+                if self.direction == 'left':
+                    self.image = self.idle_left[self.anim_index % 3]
+                elif self.direction == 'right':
+                    self.image = self.idle_right[self.anim_index % 3]
+                elif self.direction == 'up':
+                    self.image = self.idle_up[self.anim_index % 3]
+                elif self.direction == 'down':
+                    self.image = self.idle_down[self.anim_index % 3]
+            else:
+                if self.direction == 'left':
+                    self.image = self.walk_left[self.anim_index]
+                elif self.direction == 'right':
+                    self.image = self.walk_right[self.anim_index]
+                elif self.direction == 'up':
+                    self.image = self.walk_up[self.anim_index]
+                elif self.direction == 'down':
+                    self.image = self.walk_down[self.anim_index]
+
         window.blit(self.image, (self.rect.x, self.rect.y))
+
 
 class Enemy(GameSprite):
     def __init__(self, player_image, player_x, player_y, player_speed, patrol_left, patrol_right):
