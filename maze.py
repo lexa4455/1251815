@@ -267,6 +267,10 @@ class VerticalEnemy(Enemy):
         self.patrol_top = patrol_top
         self.patrol_bottom = patrol_bottom
 
+        # Загружаем анимации для движения вверх и вниз
+        self.up_images = [transform.scale(image.load(f'enemy_up/up1.png').convert_alpha(), (65, 65))]
+        self.down_images = [transform.scale(image.load(f'enemy_down/down1.png').convert_alpha(), (65, 65))]
+
     def update(self):
         if self.stunned:
             self.stun_anim_counter += 1
@@ -276,34 +280,44 @@ class VerticalEnemy(Enemy):
             self.stun_duration -= 1
             if self.stun_duration <= 0:
                 self.to_remove = True
+            self.image = self.stun_anim[self.stun_anim_index]
             return
-            
-         # Переопределяем размеры зоны для вертикального врага
-        self.vision_rect = Rect(0, 0, 65, 80)  # вертикальная красная зона
-        self.stun_zone = Rect(0, 0, 70, 70)
 
+        # Анимация (каждые 10 кадров переключение)
+        self.anim_counter += 1
+        if self.anim_counter >= 10:
+            self.anim_counter = 0
+            self.anim_index = (self.anim_index + 1)
 
+        # Патрулирование
         if self.rect.y <= self.patrol_top:
             self.direction = "down"
         if self.rect.y >= self.patrol_bottom:
             self.direction = "up"
+
         if self.direction == "up":
             self.rect.y -= self.speed
         else:
             self.rect.y += self.speed
+
         self.update_vision()
+
         if not vrag.get_num_channels():
             vrag.play(-1)
 
     def update_vision(self):
         if self.direction == "up":
-            self.vision_rect.y = self.rect.y - 80
-            self.stun_zone.y = self.rect.y + 65
+            self.vision_rect.y = self.rect.y - 80  # зона сверху
+            self.stun_zone.y = self.rect.y + 65   # зона снизу
+            self.image = self.up_images[self.anim_index % len(self.up_images)]
         else:
-            self.vision_rect.y = self.rect.y + 65
-            self.stun_zone.y = self.rect.y - 70
+            self.vision_rect.y = self.rect.y + 65  # зона снизу
+            self.stun_zone.y = self.rect.y - 70   # зона сверху
+            self.image = self.down_images[self.anim_index % len(self.down_images)]
+
         self.vision_rect.x = self.rect.x
         self.stun_zone.x = self.rect.x - 10
+
 
 def is_visible(player, enemy, walls):
     start = enemy.rect.center
