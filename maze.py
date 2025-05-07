@@ -32,6 +32,7 @@ font_hint = font.Font(None, 40)
 win_text = font_main.render("YOU WIN!", True, (0, 0, 0))
 lose_text = font_main.render("YOU LOSE!", True, (0, 0, 0))
 
+
 class GameSprite(sprite.Sprite):
     def __init__(self, player_image, player_x, player_y, player_speed):
         super().__init__()
@@ -43,6 +44,7 @@ class GameSprite(sprite.Sprite):
 
     def reset(self):
         window.blit(self.image, (self.rect.x, self.rect.y))
+
 
 class Player(GameSprite):
     def __init__(self, player_image, player_x, player_y, player_speed):
@@ -68,10 +70,22 @@ class Player(GameSprite):
         self.idle_up = [transform.scale(image.load(f"player_idle_up/idle{i}.png").convert_alpha(), (65, 65)) for i in range(1, 4)]
         self.idle_down = [transform.scale(image.load(f"player_idle_down/idle{i}.png").convert_alpha(), (65, 65)) for i in range(1, 4)]
 
+        self.alerting = False
+        self.alert_anim = [transform.scale(image.load(f"player_alert/alert{i}.png").convert_alpha(), (65, 65)) for i in range(1, 3)]
+        self.alert_index = 0
+        self.alert_counter = 0
+
         self.idle_timer = 0
         self.is_idle = False
 
     def update(self):
+        if self.alerting:
+            self.alert_counter += 1
+            if self.alert_counter >= 10:
+                self.alert_counter = 0
+                self.alert_index = (self.alert_index + 1) % len(self.alert_anim)
+            return
+
         if self.stunned:
             self.stun_timer -= 1
             if self.stun_timer <= 0:
@@ -125,7 +139,9 @@ class Player(GameSprite):
                 self.anim_index = 0
 
     def reset(self):
-        if self.stunned:
+        if self.alerting:
+            self.image = self.alert_anim[self.alert_index]
+        elif self.stunned:
             if self.direction == 'left':
                 self.image = self.stun_left[self.anim_index % 3]
             elif self.direction == 'right':
@@ -156,11 +172,11 @@ class Player(GameSprite):
 
         window.blit(self.image, (self.rect.x, self.rect.y))
 
+
 class Enemy(GameSprite):
     def __init__(self, player_image, player_x, player_y, player_speed, patrol_left, patrol_right):
         super().__init__(player_image, player_x, player_y, player_speed)
 
-        # Загружаем анимации (даже если один кадр)
         self.left_images = [transform.scale(image.load('enemy_left/left1.png'), (65, 65))]
         self.right_images = [transform.scale(image.load('enemy_right/right1.png'), (65, 65))]
 
@@ -195,13 +211,11 @@ class Enemy(GameSprite):
             self.image = self.stun_anim[self.stun_anim_index]
             return
 
-        # Анимация (каждые 10 кадров переключение)
         self.anim_counter += 1
         if self.anim_counter >= 10:
             self.anim_counter = 0
             self.anim_index = (self.anim_index + 1)
 
-        # Движение
         if self.rect.x <= self.patrol_left:
             self.direction = "right"
         if self.rect.x >= self.patrol_right:
@@ -212,35 +226,20 @@ class Enemy(GameSprite):
         else:
             self.rect.x += self.speed
 
-        # Обновляем зоны и направление взгляда
         self.update_vision()
-
-        if not vrag.get_num_channels():
-            vrag.play(-1)
 
     def update_vision(self):
         if self.direction == "left":
-            self.vision_rect.x = self.rect.x - 80  # красная зона слева
-            self.stun_zone.x = self.rect.x + 65   # зелёная зона справа
-            self.image = self.left_images[self.anim_index % len(self.left_images)]  # смотрим влево
+            self.vision_rect.x = self.rect.x - 80
+            self.stun_zone.x = self.rect.x + 65
+            self.image = self.left_images[self.anim_index % len(self.left_images)]
         else:
-            self.vision_rect.x = self.rect.x + 65  # красная зона справа
-            self.stun_zone.x = self.rect.x - 70    # зелёная зона слева
-            self.image = self.right_images[self.anim_index % len(self.right_images)]  # смотрим вправо
+            self.vision_rect.x = self.rect.x + 65
+            self.stun_zone.x = self.rect.x - 70
+            self.image = self.right_images[self.anim_index % len(self.right_images)]
 
         self.vision_rect.y = self.rect.y
         self.stun_zone.y = self.rect.y - 10
-
-
-        # Главное: выбираем картинку по положению красной зоны
-        if self.vision_rect.centerx < self.rect.centerx:
-            # красная зона слева → смотрим влево
-            
-            self.image = self.right_images[self.anim_index % len(self.right_images)]
-            
-        else:
-            # красная зона справа → смотрим вправо
-            self.image = self.left_images[self.anim_index % len(self.left_images)]
 
     def reset(self):
         window.blit(self.image, (self.rect.x, self.rect.y))
@@ -258,8 +257,6 @@ class Enemy(GameSprite):
             window.blit(surface, (self.stun_zone.x, self.stun_zone.y))
 
 
-
-
 class VerticalEnemy(Enemy):
     def __init__(self, player_image, player_x, player_y, player_speed, patrol_top, patrol_bottom):
         super().__init__(player_image, player_x, player_y, player_speed, 0, 0)
@@ -267,7 +264,6 @@ class VerticalEnemy(Enemy):
         self.patrol_top = patrol_top
         self.patrol_bottom = patrol_bottom
 
-        # Загружаем анимации для движения вверх и вниз
         self.up_images = [transform.scale(image.load(f'enemy_up/up1.png').convert_alpha(), (65, 65))]
         self.down_images = [transform.scale(image.load(f'enemy_down/down1.png').convert_alpha(), (65, 65))]
 
@@ -283,13 +279,11 @@ class VerticalEnemy(Enemy):
             self.image = self.stun_anim[self.stun_anim_index]
             return
 
-        # Анимация (каждые 10 кадров переключение)
         self.anim_counter += 1
         if self.anim_counter >= 10:
             self.anim_counter = 0
             self.anim_index = (self.anim_index + 1)
 
-        # Патрулирование
         if self.rect.y <= self.patrol_top:
             self.direction = "down"
         if self.rect.y >= self.patrol_bottom:
@@ -302,30 +296,19 @@ class VerticalEnemy(Enemy):
 
         self.update_vision()
 
-        if not vrag.get_num_channels():
-            vrag.play(-1)
-
     def update_vision(self):
         if self.direction == "up":
-            self.vision_rect.y = self.rect.y - 80  # зона сверху
-            self.stun_zone.y = self.rect.y + 65   # зона снизу
+            self.vision_rect.y = self.rect.y - 80
+            self.stun_zone.y = self.rect.y + 65
             self.image = self.up_images[self.anim_index % len(self.up_images)]
         else:
-            self.vision_rect.y = self.rect.y + 65  # зона снизу
-            self.stun_zone.y = self.rect.y - 70   # зона сверху
+            self.vision_rect.y = self.rect.y + 65
+            self.stun_zone.y = self.rect.y - 70
             self.image = self.down_images[self.anim_index % len(self.down_images)]
 
         self.vision_rect.x = self.rect.x
         self.stun_zone.x = self.rect.x - 10
 
-
-def is_visible(player, enemy, walls):
-    start = enemy.rect.center
-    end = player.rect.center
-    for wall in walls:
-        if wall.rect.clipline(start, end):
-            return False
-    return True
 
 class Wall(sprite.Sprite):
     def __init__(self, x, y, width, height):
@@ -337,6 +320,7 @@ class Wall(sprite.Sprite):
 
     def draw_wall(self):
         window.blit(self.image, (self.rect.x, self.rect.y))
+
 
 def load_level(index):
     level = levels[index]
@@ -354,10 +338,20 @@ def load_level(index):
         enemies.append(enemy)
     return player, enemies, final, walls
 
+
+def is_visible(player, enemy, walls):
+    start = enemy.rect.center
+    end = player.rect.center
+    for wall in walls:
+        if wall.rect.clipline(start, end):
+            return False
+    return True
+
+
 levels = [
     {
         "player_pos": (5, win_height - 80),
-        "final_pos": ((win_width - 270, win_height - 450)),
+        "final_pos": (win_width - 270, win_height - 450),
         "enemies": [
             {"type": "horizontal", "pos": (500, 280), "patrol": (480, 620)}
         ],
@@ -374,62 +368,9 @@ levels = [
             (250, 370, 70, 10),
         ]
     },
-    {
-        "player_pos": (600, 40),
-        "final_pos": (600, 400),
-        "enemies": [
-            {"type": "horizontal", "pos": (200, 240), "patrol": (210, 350)},
-            {"type": "vertical", "pos": (580, 300), "patrol": (200, 400)}
-        ],
-        "walls": [
-            (0, 0, 700, 10),
-            (0, 0, 10, 500),
-            (690, 0, 10, 500),
-            (0, 490, 700, 10),
-            (100, 120, 600, 10),
-            (100, 0, 10, 40),
-            (200, 80, 10, 40),
-            (300, 0, 10, 40),
-            (400, 80, 10, 40),
-            (500, 0, 10, 40),
-            (100, 120, 10, 70),
-            (100, 300, 10, 200),
-            (100, 360, 50, 10),
-            (250, 360, 300, 10),
-            (550, 300, 10, 100),
-            (550, 130, 10, 70),
-            (280, 360, 10, 50),
-            (480, 360, 10, 50),
-            (380, 450, 10, 50),
-        ]
-    },
-    {
-        "player_pos": (600, 400),
-        "final_pos": (600, 40),
-        "enemies": [
-            {"type": "horizontal", "pos": (400, 400), "patrol": (210, 350)},
-            {"type": "vertical", "pos": (400, 200), "patrol": (150, 300)},
-            {"type": "vertical", "pos": (255, 200), "patrol": (150, 300)}
-        ],
-        "walls": [
-            (0, 0, 700, 10),
-            (0, 0, 10, 500),
-            (690, 0, 10, 500),
-            (0, 490, 700, 10),
-            (100, 120, 600, 10),
-            (100, 0, 10, 35),
-            (200, 85, 10, 35),
-            (300, 0, 10, 35),
-            (400, 85, 10, 35),
-            (500, 0, 10, 35),
-            (100, 120, 10, 70),
-            (100, 300, 10, 200),
-            (100, 360, 50, 10),
-            (250, 360, 300, 10),
-            (550, 220, 10, 300),
-        ]
-    }
+    # Добавь свои уровни здесь
 ]
+
 
 current_level = 0
 player, enemies, final, walls = load_level(current_level)
@@ -450,13 +391,13 @@ while game:
             mixer.music.play(-1)
             finish = False
             stunned_count = 0
+            player.alerting = False  # сброс анимации alert
 
     if not finish:
         player.update()
         for enemy in enemies:
             enemy.update()
 
-        # Управляем звуком врагов централизованно
         active_enemies = [enemy for enemy in enemies if not enemy.stunned]
         if active_enemies:
             if not vrag.get_num_channels():
@@ -479,6 +420,7 @@ while game:
         for enemy in enemies:
             if not enemy.stunned and enemy.vision_rect.colliderect(player.rect):
                 if is_visible(player, enemy, walls):
+                    player.alerting = True  # включаем анимацию alert
                     finish = True
                     result = "lose"
                     kick.play()
@@ -487,6 +429,7 @@ while game:
                     mixer.music.stop()
 
             if not enemy.stunned and not enemy.stun_zone.colliderect(player.rect) and sprite.collide_rect(player, enemy):
+                player.alerting = True  # включаем анимацию alert
                 finish = True
                 result = "lose"
                 kick.play()
@@ -496,6 +439,7 @@ while game:
 
         for wall in walls:
             if player.rect.colliderect(wall.rect):
+                player.alerting = True  # включаем анимацию alert
                 finish = True
                 result = "lose"
                 kick.play()
@@ -548,3 +492,4 @@ while game:
 
     display.update()
     clock.tick(FPS)
+
