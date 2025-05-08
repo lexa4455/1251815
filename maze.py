@@ -15,6 +15,10 @@ display.set_caption("Maze")
 
 background = transform.scale(image.load("pol1.png"), (win_width, win_height))
 
+button_image = transform.scale(image.load("button.png"), (50, 50))  # загрузи картинку кнопки
+button_x = win_width - 110  # позиция кнопки справа
+button_y = 10               # позиция кнопки сверху
+
 mixer.music.load('labyrinth.mp3')
 mixer.music.play(-1)
 mixer.music.set_volume(0.2)
@@ -232,11 +236,11 @@ class Enemy(GameSprite):
         if self.direction == "left":
             self.vision_rect.x = self.rect.x - 80
             self.stun_zone.x = self.rect.x + 65
-            self.image = self.left_images[self.anim_index % len(self.left_images)]
+            self.image = self.right_images[self.anim_index % len(self.right_images)]
         else:
             self.vision_rect.x = self.rect.x + 65
             self.stun_zone.x = self.rect.x - 70
-            self.image = self.right_images[self.anim_index % len(self.right_images)]
+            self.image = self.left_images[self.anim_index % len(self.left_images)]
 
         self.vision_rect.y = self.rect.y
         self.stun_zone.y = self.rect.y - 10
@@ -351,7 +355,7 @@ def is_visible(player, enemy, walls):
 levels = [
     {
         "player_pos": (5, win_height - 80),
-        "final_pos": (win_width - 270, win_height - 450),
+        "final_pos": ((win_width - 270, win_height - 450)),
         "enemies": [
             {"type": "horizontal", "pos": (500, 280), "patrol": (480, 620)}
         ],
@@ -368,7 +372,61 @@ levels = [
             (250, 370, 70, 10),
         ]
     },
-    # Добавь свои уровни здесь
+    {
+        "player_pos": (600, 40),
+        "final_pos": (600, 400),
+        "enemies": [
+            {"type": "horizontal", "pos": (200, 240), "patrol": (210, 350)},
+            {"type": "vertical", "pos": (580, 300), "patrol": (200, 400)}
+        ],
+        "walls": [
+            (0, 0, 700, 10),
+            (0, 0, 10, 500),
+            (690, 0, 10, 500),
+            (0, 490, 700, 10),
+            (100, 120, 600, 10),
+            (100, 0, 10, 40),
+            (200, 80, 10, 40),
+            (300, 0, 10, 40),
+            (400, 80, 10, 40),
+            (500, 0, 10, 40),
+            (100, 120, 10, 70),
+            (100, 300, 10, 200),
+            (100, 360, 50, 10),
+            (250, 360, 300, 10),
+            (550, 300, 10, 100),
+            (550, 130, 10, 70),
+            (280, 360, 10, 50),
+            (480, 360, 10, 50),
+            (380, 450, 10, 50),
+        ]
+    },
+    {
+        "player_pos": (600, 400),
+        "final_pos": (600, 40),
+        "enemies": [
+            {"type": "horizontal", "pos": (400, 400), "patrol": (210, 350)},
+            {"type": "vertical", "pos": (400, 200), "patrol": (150, 300)},
+            {"type": "vertical", "pos": (255, 200), "patrol": (150, 300)}
+        ],
+        "walls": [
+            (0, 0, 700, 10),
+            (0, 0, 10, 500),
+            (690, 0, 10, 500),
+            (0, 490, 700, 10),
+            (100, 120, 600, 10),
+            (100, 0, 10, 35),
+            (200, 85, 10, 35),
+            (300, 0, 10, 35),
+            (400, 85, 10, 35),
+            (500, 0, 10, 35),
+            (100, 120, 10, 70),
+            (100, 300, 10, 200),
+            (100, 360, 50, 10),
+            (250, 360, 300, 10),
+            (550, 220, 10, 300),
+        ]
+    }
 ]
 
 
@@ -477,8 +535,15 @@ while game:
         for wall in walls:
             wall.draw_wall()
 
-        stun_text = font_hint.render(f"Stunned: {stunned_count}", True, (255, 255, 255))
-        window.blit(stun_text, (10, 10))
+        
+        # ➤ Рисуем кнопку с молнией и число рядом
+        window.blit(button_image, (button_x, button_y))
+
+        button_number = font_hint.render(str(stunned_count), True, (255, 255, 255))  # белый цвет цифры
+        number_x = button_x + 60  # немного правее кнопки
+        number_y = button_y + 10  # по вертикали выравниваем
+        window.blit(button_number, (number_x, number_y))
+
     else:
         window.blit(background, (0, 0))
         if result == "win":
@@ -492,4 +557,3 @@ while game:
 
     display.update()
     clock.tick(FPS)
-
