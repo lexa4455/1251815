@@ -15,9 +15,27 @@ display.set_caption("Maze")
 
 background = transform.scale(image.load("pol1.png"), (win_width, win_height))
 
-button_image = transform.scale(image.load("button.png"), (50, 50))  # загрузи картинку кнопки
-button_x = win_width - 110  # позиция кнопки справа
-button_y = 10               # позиция кнопки сверху
+button_image = transform.scale(image.load("button.png"), (50, 50))  # маленькая кнопка
+you_lose_image = transform.scale(image.load("you lose.png"), (700, 500))  # картинка проигрыша
+
+# Параметры кнопки рестарта
+restart_button_width = 300
+restart_button_height = 80
+restart_button_x = (win_width - restart_button_width) // 2
+restart_button_y = 270
+
+restart_button_image = transform.scale(image.load("button2.png"), (restart_button_width, restart_button_height))
+
+# Параметры большой иконки stun
+stun_icon_width = 300
+stun_icon_height = 80
+stun_icon_x = (win_width - stun_icon_width) // 2
+stun_icon_y = restart_button_y + restart_button_height + 20
+
+stun_icon = transform.scale(image.load("stun_icon.png"), (stun_icon_width, stun_icon_height))
+
+button_x = win_width - 110
+button_y = 10
 
 mixer.music.load('labyrinth.mp3')
 mixer.music.play(-1)
@@ -34,7 +52,8 @@ stena = image.load("stena.jpg")
 font_main = font.Font(None, 70)
 font_hint = font.Font(None, 40)
 win_text = font_main.render("YOU WIN!", True, (0, 0, 0))
-lose_text = font_main.render("YOU LOSE!", True, (0, 0, 0))
+
+font_pixel = font.Font('Jersey10-Regular.ttf', 16)
 
 
 class GameSprite(sprite.Sprite):
@@ -430,6 +449,7 @@ levels = [
 ]
 
 
+# --- Основной игровой цикл ---
 current_level = 0
 player, enemies, final, walls = load_level(current_level)
 game = True
@@ -437,6 +457,8 @@ finish = False
 clock = time.Clock()
 stunned_count = 0
 
+# Загружаем пиксельный шрифт заранее (размер 50 для большого счётчика)
+font_pixel_large = font.Font('Jersey10-Regular.ttf', 50)
 
 while game:
     for e in event.get():
@@ -449,7 +471,19 @@ while game:
             mixer.music.play(-1)
             finish = False
             stunned_count = 0
-            player.alerting = False  # сброс анимации alert
+            player.alerting = False
+
+        if e.type == MOUSEBUTTONDOWN and finish:
+            mouse_x, mouse_y = e.pos
+            if (restart_button_x <= mouse_x <= restart_button_x + restart_button_width and
+                restart_button_y <= mouse_y <= restart_button_y + restart_button_height):
+                current_level = 0
+                player, enemies, final, walls = load_level(current_level)
+                mixer.music.stop()
+                mixer.music.play(-1)
+                finish = False
+                stunned_count = 0
+                player.alerting = False
 
     if not finish:
         player.update()
@@ -478,7 +512,7 @@ while game:
         for enemy in enemies:
             if not enemy.stunned and enemy.vision_rect.colliderect(player.rect):
                 if is_visible(player, enemy, walls):
-                    player.alerting = True  # включаем анимацию alert
+                    player.alerting = True
                     finish = True
                     result = "lose"
                     kick.play()
@@ -487,7 +521,7 @@ while game:
                     mixer.music.stop()
 
             if not enemy.stunned and not enemy.stun_zone.colliderect(player.rect) and sprite.collide_rect(player, enemy):
-                player.alerting = True  # включаем анимацию alert
+                player.alerting = True
                 finish = True
                 result = "lose"
                 kick.play()
@@ -497,7 +531,7 @@ while game:
 
         for wall in walls:
             if player.rect.colliderect(wall.rect):
-                player.alerting = True  # включаем анимацию alert
+                player.alerting = True
                 finish = True
                 result = "lose"
                 kick.play()
@@ -535,25 +569,34 @@ while game:
         for wall in walls:
             wall.draw_wall()
 
-        
-        # ➤ Рисуем кнопку с молнией и число рядом
         window.blit(button_image, (button_x, button_y))
-
-        button_number = font_hint.render(str(stunned_count), True, (255, 255, 255))  # белый цвет цифры
-        number_x = button_x + 60  # немного правее кнопки
-        number_y = button_y + 10  # по вертикали выравниваем
-        window.blit(button_number, (number_x, number_y))
+        button_number = font_hint.render(str(stunned_count), True, (255, 255, 255))
+        window.blit(button_number, (button_x + 60, button_y + 10))
 
     else:
-        window.blit(background, (0, 0))
         if result == "win":
+            window.blit(background, (0, 0))
             window.blit(win_text, (200, 200))
         else:
-            window.blit(lose_text, (200, 200))
-        restart_hint = font_hint.render("Press R to restart", True, (0, 0, 0))
-        window.blit(restart_hint, (200, 300))
-        stun_result = font_hint.render(f"Total stunned: {stunned_count}", True, (0, 0, 0))
-        window.blit(stun_result, (200, 350))
+            window.blit(you_lose_image, (0, 0))
+
+            window.blit(restart_button_image, (restart_button_x, restart_button_y))
+
+            # Иконка и увеличенный счётчик справа от неё
+            stun_text_x = restart_button_x
+            stun_text_y = restart_button_y + restart_button_height + 20
+
+            # Рисуем иконку
+            window.blit(stun_icon, (stun_text_x, stun_text_y))
+
+            # Рендерим число большим шрифтом
+            stun_result = font_pixel_large.render(f"{stunned_count}", True, (21,21,21))
+
+            # Позиция СПРАВА от иконки с выравниванием по центру
+            text_x = stun_text_x + stun_icon.get_width() + 5  # справа от иконки, отступ 5 пикселей
+            text_y = stun_text_y + (stun_icon.get_height() - stun_result.get_height()) // 2
+
+            window.blit(stun_result, (text_x, text_y))
 
     display.update()
     clock.tick(FPS)
