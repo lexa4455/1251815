@@ -17,6 +17,7 @@ background = transform.scale(image.load("pol1.png"), (win_width, win_height))
 
 button_image = transform.scale(image.load("button.png"), (50, 50))  # маленькая кнопка
 you_lose_image = transform.scale(image.load("you lose.png"), (700, 500))  # картинка проигрыша
+you_win_image = transform.scale(image.load("you win.png"), (700, 500))    # картинка победы!
 
 # Параметры кнопки рестарта
 restart_button_width = 300
@@ -51,9 +52,8 @@ stena = image.load("stena.jpg")
 
 font_main = font.Font(None, 70)
 font_hint = font.Font(None, 40)
-win_text = font_main.render("YOU WIN!", True, (0, 0, 0))
-
 font_pixel = font.Font('Jersey10-Regular.ttf', 16)
+
 
 
 class GameSprite(sprite.Sprite):
@@ -464,6 +464,7 @@ while game:
     for e in event.get():
         if e.type == QUIT:
             game = False
+
         if e.type == KEYDOWN and finish and e.key == K_r:
             current_level = 0
             player, enemies, final, walls = load_level(current_level)
@@ -486,6 +487,8 @@ while game:
                 player.alerting = False
 
     if not finish:
+        window.blit(background, (0, 0))  # Показываем фон
+
         player.update()
         for enemy in enemies:
             enemy.update()
@@ -556,7 +559,7 @@ while game:
                 vrag.stop()
                 mixer.music.stop()
 
-        window.blit(background, (0, 0))
+        # Отрисовка всех объектов
         player.reset()
         for enemy in enemies:
             enemy.reset()
@@ -575,25 +578,37 @@ while game:
 
     else:
         if result == "win":
-            window.blit(background, (0, 0))
-            window.blit(win_text, (200, 200))
+            window.blit(you_win_image, (0, 0))
+
+            window.blit(restart_button_image, (restart_button_x, restart_button_y))
+
+            # Иконка и счётчик (оставляем как раньше)
+            stun_text_x = restart_button_x
+            stun_text_y = restart_button_y + restart_button_height + 5 
+
+            window.blit(stun_icon, (stun_text_x, stun_text_y))
+
+            stun_result = font_pixel_large.render(f"{stunned_count}", True, (21, 21, 21))
+
+            text_x = stun_text_x + stun_icon.get_width() + 5
+            text_y = stun_text_y + (stun_icon.get_height() - stun_result.get_height()) // 2
+
+            window.blit(stun_result, (text_x, text_y))
+
         else:
             window.blit(you_lose_image, (0, 0))
 
             window.blit(restart_button_image, (restart_button_x, restart_button_y))
 
-            # Иконка и увеличенный счётчик справа от неё
+            # Иконка и счётчик (оставляем как раньше)
             stun_text_x = restart_button_x
             stun_text_y = restart_button_y + restart_button_height + 20
 
-            # Рисуем иконку
             window.blit(stun_icon, (stun_text_x, stun_text_y))
 
-            # Рендерим число большим шрифтом
-            stun_result = font_pixel_large.render(f"{stunned_count}", True, (21,21,21))
+            stun_result = font_pixel_large.render(f"{stunned_count}", True, (21, 21, 21))
 
-            # Позиция СПРАВА от иконки с выравниванием по центру
-            text_x = stun_text_x + stun_icon.get_width() + 5  # справа от иконки, отступ 5 пикселей
+            text_x = stun_text_x + stun_icon.get_width() + 5
             text_y = stun_text_y + (stun_icon.get_height() - stun_result.get_height()) // 2
 
             window.blit(stun_result, (text_x, text_y))
