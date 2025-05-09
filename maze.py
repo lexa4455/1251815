@@ -564,7 +564,7 @@ while game:
             enemy.draw_vision()
             enemy.draw_stun_zone()
             if enemy.stun_zone.colliderect(player.rect):
-                hint = font_hint.render("Press SPACE!", True, (21, 21, 21))
+                hint = font_pixel_large.render("Press SPACE!", True, (21, 21, 21))
                 window.blit(hint, (enemy.rect.x - 20, enemy.rect.y - 30))
         final.reset()
         for wall in walls:
