@@ -564,7 +564,7 @@ while game:
             enemy.draw_vision()
             enemy.draw_stun_zone()
             if enemy.stun_zone.colliderect(player.rect):
-                hint = font_hint.render("Press SPACE!", True, (255, 255, 255))
+                hint = font_hint.render("Press SPACE!", True, (21, 21, 21))
                 window.blit(hint, (enemy.rect.x - 20, enemy.rect.y - 30))
         final.reset()
         for wall in walls:
@@ -572,7 +572,7 @@ while game:
 
         # Отрисовка иконки и счётчика с pixel-шрифтом (цифру чуть-чуть выше)
         window.blit(button_image, (button_x, button_y))
-        button_number = font_pixel_large.render(str(stunned_count), True, (255, 255, 255))
+        button_number = font_pixel_large.render(str(stunned_count), True, (21, 21, 21))
         window.blit(button_number, (button_x + 60, button_y))  # убрали +5, теперь выше
 
     else:
