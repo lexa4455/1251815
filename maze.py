@@ -53,6 +53,7 @@ stena = image.load("stena.jpg")
 font_main = font.Font(None, 70)
 font_hint = font.Font(None, 40)
 font_pixel = font.Font('Jersey10-Regular.ttf', 16)
+font_pixel_large = font.Font('Jersey10-Regular.ttf', 50)
 
 
 
@@ -457,9 +458,6 @@ finish = False
 clock = time.Clock()
 stunned_count = 0
 
-# Загружаем пиксельный шрифт заранее (размер 50 для большого счётчика)
-font_pixel_large = font.Font('Jersey10-Regular.ttf', 50)
-
 while game:
     for e in event.get():
         if e.type == QUIT:
@@ -572,19 +570,19 @@ while game:
         for wall in walls:
             wall.draw_wall()
 
+        # Отрисовка иконки и счётчика с pixel-шрифтом (цифру чуть-чуть выше)
         window.blit(button_image, (button_x, button_y))
-        button_number = font_hint.render(str(stunned_count), True, (255, 255, 255))
-        window.blit(button_number, (button_x + 60, button_y + 10))
+        button_number = font_pixel_large.render(str(stunned_count), True, (255, 255, 255))
+        window.blit(button_number, (button_x + 60, button_y))  # убрали +5, теперь выше
 
     else:
         if result == "win":
             window.blit(you_win_image, (0, 0))
-
             window.blit(restart_button_image, (restart_button_x, restart_button_y))
 
-            # Иконка и счётчик (оставляем как раньше)
+            # Иконка и счётчик под кнопкой
             stun_text_x = restart_button_x
-            stun_text_y = restart_button_y + restart_button_height + 5 
+            stun_text_y = restart_button_y + restart_button_height + 5
 
             window.blit(stun_icon, (stun_text_x, stun_text_y))
 
@@ -597,10 +595,8 @@ while game:
 
         else:
             window.blit(you_lose_image, (0, 0))
-
             window.blit(restart_button_image, (restart_button_x, restart_button_y))
 
-            # Иконка и счётчик (оставляем как раньше)
             stun_text_x = restart_button_x
             stun_text_y = restart_button_y + restart_button_height + 20
 
